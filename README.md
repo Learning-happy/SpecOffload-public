@@ -4,6 +4,7 @@ SpecOffload is an efficient offloading
 framework for high-throughput inference on resource-constrained devices. It allows you to run unquantized Mixtral-8x7B model (>90GB of parameters) with >30 token/s on a single 24GB GPU.
 
 ## Update
+* [2025/05] We published an arXiv preprint.
 * [2025/05] We released the repository.
 
 ## Prepare
@@ -65,3 +66,10 @@ Schematic of the decoding pipeline. At model-level, while the target model valid
 ![overall](./asset/overall.png)
 
 The figure above illustrates the end-to-end throughput of five approaches across two environments and three datasets. Using the Mixtral 8×7B model, SpecOffload attains an average speedup of 2.53× over the strongest baseline, FlexGen; with the Mixtral 8×22B model, it achieves an average speedup of 2.54×.
+
+## Citation
+If you use SpecOffload in your research, please cite the following paper.
+
+```
+TODO
+```
