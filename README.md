@@ -1,4 +1,4 @@
-# SpecOffload: Unlocking Latent GPU Capacity for LLMInference on Resource-Constrained Devices
+# SpecOffload: Unlocking Latent GPU Capacity for LLM Inference on Resource-Constrained Devices
 
 SpecOffload is an efficient offloading
 framework for high-throughput inference on resource-constrained devices. It allows you to run unquantized Mixtral-8x7B model (>90GB of parameters) with >30 token/s on a single 24GB GPU.
