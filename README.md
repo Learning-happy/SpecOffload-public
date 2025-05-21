@@ -71,5 +71,13 @@ The figure above illustrates the end-to-end throughput of five approaches across
 If you use SpecOffload in your research, please cite the following paper.
 
 ```
-TODO
+@misc{zhuge2025specoffloadunlockinglatentgpu,
+      title={SpecOffload: Unlocking Latent GPU Capacity for LLM Inference on Resource-Constrained Devices}, 
+      author={Xiangwen Zhuge and Xu Shen and Zeyu Wang and Fan Dang and Xuan Ding and Danyang Li and Yahui Han and Tianxiang Hao and Zheng Yang},
+      year={2025},
+      eprint={2505.10259},
+      archivePrefix={arXiv},
+      primaryClass={cs.LG},
+      url={https://arxiv.org/abs/2505.10259}, 
+}
 ```
