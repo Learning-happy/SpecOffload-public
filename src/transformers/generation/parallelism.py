@@ -33,13 +33,13 @@ class MultiThreadGenerationInterface: # 双线程协同生成接口
 class AssistantProcessInterface:
     def __init__(
         self,
-        vocab_size: int,
-        input_token_length: int,
-        max_new_tokens: int,
-        generation_batch_size: int,
-        assistant_batch_size: int,
-        assistant_max_new_tokens: int = 5,
-        number_of_threads: int = 1,
+        vocab_size: int, # 词表大小，决定candidate_logits的最后一维维度
+        input_token_length: int, # 输入序列的长度
+        max_new_tokens: int, # 主模型生成的最大新Token数
+        generation_batch_size: int, # 主模型的批大小​​，影响输入张量的第一维
+        assistant_batch_size: int, # ​​辅助模型的批大小​​，可能用于轻量化模型加速生成
+        assistant_max_new_tokens: int = 5, # 辅助模型单次生成的最大Token数（默认5）
+        number_of_threads: int = 1, # 线程数，决定batch_finish_prefilling_events的数量（默认1）
     ):
         # Parameters
         self.generation_batch_size = generation_batch_size
