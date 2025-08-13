@@ -113,13 +113,13 @@ def tokenize_text(
         # print(dataset)
         dataset = dataset_extractor(dataset) # 提取文本列
         
-        if skip + batch_size <= len(dataset):
-            dataset = dataset[skip:skip+batch_size]
+        if skip + batch_size <= len(dataset): 
+            dataset = dataset[skip:skip+batch_size] # 跳过前skip行，获取batch_size行
         else:
-            dataset = dataset[-skip-batch_size:]
+            dataset = dataset[-skip-batch_size:]    # 获取全部行
         if dataset_preprocessor is not None:
             for i in range(len(dataset)):
-                dataset[i] = dataset_preprocessor(dataset[i])
+                dataset[i] = dataset_preprocessor(dataset[i]) # 逐行处理数据
                 # print(dataset[i])
         
         if token_length_truncate is not None:
@@ -146,9 +146,9 @@ def tokenize_text(
             
         # Adjust token length
         if token_length_pad is not None and inputs['input_ids'].shape[1] < token_length_pad:
-            pad_size = token_length_pad - inputs['input_ids'].shape[1]
-            inputs['input_ids'] = pad(inputs['input_ids'], (pad_size, 0), value=tokenizer.pad_token_id)
-            inputs['attention_mask'] = pad(inputs['attention_mask'], (pad_size, 0), value=0)
+            pad_size = token_length_pad - inputs['input_ids'].shape[1] # 需要填充的字符长度
+            inputs['input_ids'] = pad(inputs['input_ids'], (pad_size, 0), value=tokenizer.pad_token_id) # 填充字符（pad_size, 0）表示对最后一个维度左边扩充pad_size列，右边不扩充
+            inputs['attention_mask'] = pad(inputs['attention_mask'], (pad_size, 0), value=0) # 同步填充注意力掩码，标识填充部分无需模型关注
         
         if device != 'auto': # 显式指定设备（GPU/CPU）
             inputs.to(device)
@@ -173,8 +173,8 @@ def tokenize_text(
         # 对输入batch进行tokenize
         inputs = tokenizer(
             batch, 
-            is_split_into_words=True,          # 因为输入是 token 列表
-            padding=True,                      # 添加 padding 使每个输入等长
+            is_split_into_words=True,          # 因为输入是 token 列表，已经分词
+            padding=True,                      # 添加 padding 自动填充至批次内最长序列长度
             truncation=True,                   # 确保长度限制在模型支持的最大 token 长度
             max_length=token_length_truncate,  # 设置最大长度为 token_length
             return_tensors='pt'                # 返回 PyTorch tensors
@@ -396,7 +396,7 @@ if __name__ == '__main__':
     print(f"DRAFT  MODEL: {ASSISTANT_MODEL_PATH}")
     print(f"CUDA DEVICE: {GPU_DEVICE}")
     
-    num_of_new_tokens = [0, 0]
+    num_of_new_tokens = [0, 0] # 双批次并行推理，一个batch做推测，另一个batch做验证，此列表表示两个batch各自的已生成tokens数量
     generation_kwargs = {
         'max_new_tokens': MAX_NEW_TOKENS,
         'prefill_batch_size': PREFILL_BATCH_SIZE,
@@ -419,9 +419,9 @@ if __name__ == '__main__':
         'batch_size': GENERATION_BATCH_SIZE,
     }
     
-    tokenizer = load_tokenizer(MAIN_MODEL_PATH)
+    tokenizer = load_tokenizer(MAIN_MODEL_PATH) # 加载tokenizer
     inputs = tokenize_text(tokenizer, **tokenization_config)
-    generation_kwargs.update(inputs)
+    generation_kwargs.update(inputs) # 在generation_kwargs里添加input_ids和attention_mask
     
     vocab_size = tokenizer.vocab_size
     input_token_length = inputs['input_ids'].shape[1]
@@ -456,7 +456,7 @@ if __name__ == '__main__':
                     'ASSISTANT_MODEL_PATH': ASSISTANT_MODEL_PATH,
                     'gpu_device': GPU_DEVICE,
                 },
-                daemon=True,
+                daemon=True, # 设置为守护进程，主进程终止时自动终止子进程，避免资源泄漏
             )
             assistant_process.start()
             
@@ -465,8 +465,8 @@ if __name__ == '__main__':
                 generation_kwargs_1['assistant_process_interface'] = assistant_process_interface
         else:
             # Load assistant model
-            assistant_model = load_model(ASSISTANT_MODEL_PATH, device=GPU_DEVICE)
-            assistant_model.generation_config.assistant_confidence_threshold = 0.0
+            assistant_model = load_model(ASSISTANT_MODEL_PATH, device=GPU_DEVICE) # 将draft model加载进GPU
+            assistant_model.generation_config.assistant_confidence_threshold = 0.0 # 关闭动态推测解码
             
             generation_kwargs['assistant_model'] = assistant_model
             if PARALLEL_GENERATION:
@@ -474,8 +474,8 @@ if __name__ == '__main__':
                 
             
     # Load main model
-    model = load_model(MAIN_MODEL_PATH, device='cpu', gpu_device=GPU_DEVICE, is_target_model=True)
-    model.init_gpu_device(GPU_DEVICE)
+    model = load_model(MAIN_MODEL_PATH, device='cpu', gpu_device=GPU_DEVICE, is_target_model=True) # 将target model加载进CPU
+    model.init_gpu_device(GPU_DEVICE) # 在GPU上预分配一层的两个激活专家的空间
         
     # Prepare multi-thread generation
     if SPECULATIVE_DECODING and PARALLEL_GENERATION:
