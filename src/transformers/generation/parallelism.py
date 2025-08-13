@@ -4,31 +4,31 @@ import torch.multiprocessing as mp
 from multiprocessing.synchronize import Event as ProcessEvent
 import torch
 
-class MultiThreadGenerationInterface:
+class MultiThreadGenerationInterface: # 双线程协同生成接口
     def __init__(
         self,
-        batch_finish_events: List[ThreadEvent],
-        alive_flags: List[bool],
-        thread_id: int = 0,
+        batch_finish_events: List[ThreadEvent],  # 线程事件对象列表
+        alive_flags: List[bool],  # 线程存活状态标志列表
+        thread_id: int = 0, # 当前线程ID
     ):
         self.thread_id = thread_id
         self.batch_finish_events = batch_finish_events
         self.alive_flags = alive_flags
         
     def wait_and_clear(self):
-        if not self.alive_flags[1 - self.thread_id]:
+        if not self.alive_flags[1 - self.thread_id]: # 检查对端线程是否已终止
             return
     
-        wait_event = self.batch_finish_events[1 - self.thread_id]
-        wait_event.wait()
-        wait_event.clear()
+        wait_event = self.batch_finish_events[1 - self.thread_id] # 获取对端线程事件
+        wait_event.wait() # 阻塞等待对端线程事件触发
+        wait_event.clear() # 重置事件状态
         
     def set(self):
-        set_event = self.batch_finish_events[self.thread_id]
-        set_event.set()
+        set_event = self.batch_finish_events[self.thread_id] # 当前线程事件
+        set_event.set() # 触发事件，通知对端线程
         
     def set_finished(self):
-        self.alive_flags[self.thread_id] = False
+        self.alive_flags[self.thread_id] = False # 更新自身状态为终止
         
 class AssistantProcessInterface:
     def __init__(

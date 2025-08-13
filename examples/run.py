@@ -111,7 +111,7 @@ def tokenize_text(
     if dataset_path is not None:
         dataset = load_dataset(dataset_type, data_files=dataset_path)
         # print(dataset)
-        dataset = dataset_extractor(dataset)
+        dataset = dataset_extractor(dataset) # 提取文本列
         
         if skip + batch_size <= len(dataset):
             dataset = dataset[skip:skip+batch_size]
@@ -129,18 +129,18 @@ def tokenize_text(
             
         inputs = tokenizer(
             dataset,
-            padding=True,
-            return_tensors='pt',
-            **tokenization_params,)
+            padding=True, # 自动填充至批次内最长序列
+            return_tensors='pt', # 返回 PyTorch 张量
+            **tokenization_params,) # 截断参数（max_length=token_length_truncate）
         
         # Adjust batch size
-        if repeat:
+        if repeat: # 重复首个样本填充批次
             inputs['input_ids'] = inputs['input_ids'][:1]
             inputs['attention_mask'] = inputs['attention_mask'][:1]
-        while inputs['input_ids'].shape[0] < batch_size:
+        while inputs['input_ids'].shape[0] < batch_size: # 复制样本直至满足批次大小
             inputs['input_ids'] = torch.cat([inputs['input_ids'], inputs['input_ids']])
             inputs['attention_mask'] = torch.cat([inputs['attention_mask'], inputs['attention_mask']])
-        if inputs['input_ids'].shape[0] > batch_size:
+        if inputs['input_ids'].shape[0] > batch_size: # 截断多余样本
             inputs['input_ids'] = inputs['input_ids'][:batch_size]
             inputs['attention_mask'] = inputs['attention_mask'][:batch_size]
             
@@ -150,7 +150,7 @@ def tokenize_text(
             inputs['input_ids'] = pad(inputs['input_ids'], (pad_size, 0), value=tokenizer.pad_token_id)
             inputs['attention_mask'] = pad(inputs['attention_mask'], (pad_size, 0), value=0)
         
-        if device != 'auto':
+        if device != 'auto': # 显式指定设备（GPU/CPU）
             inputs.to(device)
         
     else:
@@ -160,7 +160,7 @@ def tokenize_text(
             text = f.read()
 
         # 将文本分词
-        tokens = tokenizer.tokenize(text)
+        tokens = tokenizer.tokenize(text) # 分词（如 ["Let", "'", "s", ...]）
 
         # 分割文本为 batch
         batch = []
@@ -218,7 +218,7 @@ def assistant_model_generation(
 ) -> None:
     print(f"assistant model generation gpu device: {gpu_device}")
     assistant_model = load_model(ASSISTANT_MODEL_PATH, device='cpu')
-    if assistant_max_new_tokens is not None:
+    if assistant_max_new_tokens is not None: # 不启用动态推测解码
         assistant_model.generation_config.assistant_confidence_threshold = 0.0
         assistant_model.generation_config.num_assistant_tokens = assistant_max_new_tokens
     model_on_gpu = False
@@ -299,7 +299,7 @@ def thread_generation(model_generate, *args, **kwargs):
 
 if __name__ == '__main__':
     # Common generation configuration
-    mp.set_start_method('spawn')
+    mp.set_start_method('spawn', force=True)
     
     parser = argparse.ArgumentParser()
     parser.add_argument(
@@ -353,14 +353,14 @@ if __name__ == '__main__':
     parser.add_argument(
         "--target-model",
         type=str,
-        default="mistralai/Mixtral-8x7B-v0.1",
-        help="Path to target model. Default is mistralai/Mixtral-8x7B-v0.1.",
+        default="/home/yyf/data/Mixtral-8x7B-v0.1",
+        help="Path to target model. Default is /home/yyf/data/Mixtral-8x7B-v0.1.",
     )
     parser.add_argument(
         "--draft-model",
         type=str,
-        default="mistralai/Mistral-7B-Instruct-v0.2",
-        help="Path to draft model. Default is mistralai/Mistral-7B-Instruct-v0.2.",
+        default="/home/yyf/data/Mistral-7B-Instruct-v0.2",
+        help="Path to draft model. Default is /home/yyf/data/Mistral-7B-Instruct-v0.2.",
     )
     parser.add_argument(
         "--cuda",
