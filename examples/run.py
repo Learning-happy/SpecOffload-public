@@ -217,24 +217,23 @@ def assistant_model_generation(
     gpu_device: Optional[str] = 'cuda:0',
 ) -> None:
     print(f"assistant model generation gpu device: {gpu_device}")
-    assistant_model = load_model(ASSISTANT_MODEL_PATH, device='cpu')
+    assistant_model = load_model(ASSISTANT_MODEL_PATH, device='cpu') # 将辅助模型加载进CPU
     if assistant_max_new_tokens is not None: # 不启用动态推测解码
         assistant_model.generation_config.assistant_confidence_threshold = 0.0
         assistant_model.generation_config.num_assistant_tokens = assistant_max_new_tokens
     model_on_gpu = False
     
-    assistant_process_interface.assistant_ready_event.set()
+    assistant_process_interface.assistant_ready_event.set() # 设置辅助模型空闲
     
     while True:
         # Wait for input
-        assistant_process_interface.input_ready_event.wait()
-        
+        assistant_process_interface.input_ready_event.wait() # 辅助模型等待接收输入
         if not model_on_gpu:
             # Wait until all batches finish prefilling
-            for event in assistant_process_interface.batch_finish_prefilling_events:
+            for event in assistant_process_interface.batch_finish_prefilling_events: # 等待两个批次的输入完成prefill
                 event.wait()
             
-            assistant_model.to(gpu_device)
+            assistant_model.to(gpu_device) # 加载辅助模型进GPU
             candidate_generator = AssistedCandidateGenerator(
                 input_ids=torch.Tensor(),
                 assistant_model=assistant_model,
@@ -297,6 +296,7 @@ def thread_generation(model_generate, *args, **kwargs):
     result = model_generate(*args, **kwargs)
     THREAD_GENERATION_RESULT.append(result)
 
+# python examples/run.py --input-token-length-truncate 128 --cuda 0
 if __name__ == '__main__':
     # Common generation configuration
     mp.set_start_method('spawn', force=True)
@@ -398,15 +398,15 @@ if __name__ == '__main__':
     
     num_of_new_tokens = [0, 0] # 双批次并行推理，一个batch做推测，另一个batch做验证，此列表表示两个batch各自的已生成tokens数量
     generation_kwargs = {
-        'max_new_tokens': MAX_NEW_TOKENS,
-        'prefill_batch_size': PREFILL_BATCH_SIZE,
-        'log_config': LOG_CONFIG,
-        'num_of_new_tokens': num_of_new_tokens,
+        'max_new_tokens': MAX_NEW_TOKENS, # 拟生成token数量
+        'prefill_batch_size': PREFILL_BATCH_SIZE, # prefill的batch_size
+        'log_config': LOG_CONFIG, # 计时器
+        'num_of_new_tokens': num_of_new_tokens, # 双批次已生成token数量
         'gpu_device': GPU_DEVICE,
     }
     if PARALLEL_GENERATION:
         generation_kwargs_1 = copy(generation_kwargs)
-    
+
     # Tokenize text
     tokenization_config = {
         'token_length_pad': INPUT_TOKEN_LENGTH_PAD,
@@ -418,18 +418,19 @@ if __name__ == '__main__':
         'token_length_truncate': INPUT_TOKEN_LENGTH_TRUNCATE,
         'batch_size': GENERATION_BATCH_SIZE,
     }
-    
+
     tokenizer = load_tokenizer(MAIN_MODEL_PATH) # 加载tokenizer
-    inputs = tokenize_text(tokenizer, **tokenization_config)
-    generation_kwargs.update(inputs) # 在generation_kwargs里添加input_ids和attention_mask
+    # inputs['input_ids'].shape = (batch_size, token_length_truncate) = inputs['attention_mask'].shape
+    inputs = tokenize_text(tokenizer, **tokenization_config) # inputs是一个字典, 包含input_ids和attention_mask两个键值对
+    # 在generation_kwargs里添加input_ids和attention_mask
+    generation_kwargs.update(inputs)  # 此时inputs['input_ids'].device = inputs['attention_mask'].device = CPU
     
-    vocab_size = tokenizer.vocab_size
-    input_token_length = inputs['input_ids'].shape[1]
-    
+    vocab_size = tokenizer.vocab_size # 32000
+    input_token_length = inputs['input_ids'].shape[1] # 128
+
     if SPECULATIVE_DECODING and PARALLEL_GENERATION:
         inputs_1 = tokenize_text(tokenizer, skip=GENERATION_BATCH_SIZE, **tokenization_config)
-        generation_kwargs_1.update(inputs_1)
-    
+        generation_kwargs_1.update(inputs_1) # 此时inputs_1['input_ids'].device = inputs_1['attention_mask'].device = CPU
     
     # Prepare assistant model configuration
     if SPECULATIVE_DECODING:
@@ -437,12 +438,12 @@ if __name__ == '__main__':
             number_of_threads = 2 if PARALLEL_GENERATION else 1
             
             assistant_process_interface = AssistantProcessInterface(
-                vocab_size=vocab_size,
-                input_token_length=input_token_length,
-                max_new_tokens=MAX_NEW_TOKENS,
-                generation_batch_size=GENERATION_BATCH_SIZE,
-                assistant_batch_size=ASSISTANT_BATCH_SIZE,
-                assistant_max_new_tokens=ASSISTANT_MAX_NEW_TOKENS,
+                vocab_size=vocab_size, # 词汇表长度
+                input_token_length=input_token_length, # prompt长度
+                max_new_tokens=MAX_NEW_TOKENS, # 拟生成token数量
+                generation_batch_size=GENERATION_BATCH_SIZE, # 主模型推理batch_size
+                assistant_batch_size=ASSISTANT_BATCH_SIZE, # 辅助模型推理batch_size
+                assistant_max_new_tokens=ASSISTANT_MAX_NEW_TOKENS, # 辅助模型一次推测token的数量
                 number_of_threads=number_of_threads,
             )
             
@@ -471,7 +472,6 @@ if __name__ == '__main__':
             generation_kwargs['assistant_model'] = assistant_model
             if PARALLEL_GENERATION:
                 generation_kwargs_1['assistant_model'] = assistant_model
-                
             
     # Load main model
     model = load_model(MAIN_MODEL_PATH, device='cpu', gpu_device=GPU_DEVICE, is_target_model=True) # 将target model加载进CPU
